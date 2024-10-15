@@ -1,6 +1,8 @@
 package main
 
 import "core:fmt"
+import "core:strings"
+import "core:sys/windows"
 
 import sdl "vendor:sdl2"
 import d3d "vendor:directx/d3d11"
@@ -102,8 +104,7 @@ main :: proc() {
             adapter->GetDesc(&adapter_desc)
             assert(h_result == 0)
             
-            fmt.printfln("Graphics Device: %v", adapter_desc.Description)
-
+            builder := strings.builder_make_none()
             
             h_result = adapter->GetParent(dxgi.IFactory2_UUID, (^rawptr)(&factory))
             assert(h_result == 0)
@@ -121,7 +122,7 @@ main :: proc() {
     	    Scaling     = .NONE,
     	    SwapEffect  = .FLIP_SEQUENTIAL,
     	    AlphaMode   = .UNSPECIFIED,
-    	    Flags       = { .NONPREROTATED },
+    	    Flags       = { },
         }
 
         h_result = factory->CreateSwapChainForHwnd(
@@ -149,16 +150,80 @@ main :: proc() {
         frame_buffer->Release()
     }
 
+    // Vertex Shader
+    vertex_shader : ^d3d.IVertexShader
+    {
+        vs_blob : ^d3d.IBlob
+        shader_compiler_errors_blob : ^d3d.IBlob
+
+        h_result = d3d_comp.CompileFromFile(
+            pFileName       = windows.utf8_to_wstring("shaders.hlsl"),
+            pDefines        = nil,
+            pInclude        = nil,
+            pEntrypoint     = "vs_main",
+            pTarget         = "vs_5_0",
+            Flags1          = {},
+            Flags2          = {},
+            ppCode          = &vs_blob,
+            ppErrorMsgs     = &shader_compiler_errors_blob
+        )
+
+        assert(h_result == 0)
+
+        h_result = device->CreateVertexShader(
+            vs_blob->GetBufferPointer(), 
+            vs_blob->GetBufferSize(), 
+            nil, 
+            &vertex_shader
+        )
+
+        assert(h_result == 0)
+    }
+
+    pixel_shader : ^d3d.IPixelShader
+    {
+        ps_blob : ^d3d.IBlob
+        shader_compiler_errors_blob : ^d3d.IBlob
+
+        h_result = d3d_comp.CompileFromFile(
+            pFileName       = windows.utf8_to_wstring("shaders.hlsl"),
+            pDefines        = nil,
+            pInclude        = nil,
+            pEntrypoint     = "ps_main",
+            pTarget         = "ps_5_0",
+            Flags1          = {},
+            Flags2          = {},
+            ppCode          = &ps_blob,
+            ppErrorMsgs     = &shader_compiler_errors_blob
+        )
+
+        assert(h_result == 0)
+
+        h_result = device->CreatePixelShader(
+            ps_blob->GetBufferPointer(), 
+            ps_blob->GetBufferSize(), 
+            nil, 
+            &pixel_shader
+        )
+
+        assert(h_result == 0)
+    }
+
     for quit := false; !quit; {
         for e: sdl.Event; sdl.PollEvent(&e); {
             #partial switch e.type {
                 case .QUIT:
                     quit = true
+                case .KEYDOWN:
+                    if e.key.keysym.sym == sdl.Keycode.ESCAPE {
+                        quit = true
+                    }
             }
         }
-    }
-}
 
-bite :: proc() -> (u32, i32) { 
-    return 1, 2
+        bg_color := [4]f32 {.1, .2, .6, 1}
+        device_ctx->ClearRenderTargetView(frame_buffer_view, &bg_color)
+
+        swap_chain->Present(1, {})
+    }
 }

@@ -11,13 +11,26 @@ window_size := [2]i32 {800, 600}
 
 main :: proc() {
     // Sdl initialization
-    window := sdl.CreateWindow("D3d Test", 400, 0, window_size.x, window_size.y, { .})
+    sdl.Init({ .VIDEO, .EVENTS })
+    defer sdl.Quit()
 
-    if window == nil {
-        glfw.Terminate()
-        panic("could not create window")
-    }
-    
+    sdl.SetHintWithPriority(sdl.HINT_RENDER_DRIVER, "direct3d11", .OVERRIDE)
+
+    window := sdl.CreateWindow(
+        "D3d Test", 
+        sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED,
+        window_size.x, window_size.y, 
+        { }
+    )
+    defer sdl.DestroyWindow(window)
+
+    window_system_info: sdl.SysWMinfo
+    sdl.GetVersion(&window_system_info.version)
+    sdl.GetWindowWMInfo(window, &window_system_info)
+    assert(window_system_info.subsystem == .WINDOWS)
+
+    native_window := dxgi.HWND(window_system_info.info.win.window)
+
     // D3D INITIALIZATION 
     h_result    : d3d.HRESULT
 
@@ -29,13 +42,13 @@ main :: proc() {
         base_device      : ^d3d.IDevice
         base_device_ctx  : ^d3d.IDeviceContext
 
-	    feature_levels := [?]d3d.FEATURE_LEVEL{._11_0}
+	    feature_levels := [?]d3d.FEATURE_LEVEL{ ._11_0, ._11_1 }
 
         h_result = d3d.CreateDevice(
             pAdapter = nil,
             DriverType = .HARDWARE, 
             Software = nil,
-            Flags = { .BGRA_SUPPORT },
+            Flags = { .BGRA_SUPPORT, .DEBUG },
             pFeatureLevels = &feature_levels[0],
             FeatureLevels = len(feature_levels),
             SDKVersion = d3d.SDK_VERSION,
@@ -43,7 +56,8 @@ main :: proc() {
             pFeatureLevel = nil,
             ppImmediateContext = &base_device_ctx
         )
-        
+
+        fmt.println(h_result) 
         assert(h_result == 0)
         
         h_result := base_device->QueryInterface(d3d.IDevice_UUID, (^rawptr)(&device))
@@ -97,24 +111,22 @@ main :: proc() {
         }
         
         swap_chain_desc := dxgi.SWAP_CHAIN_DESC1 {
-            Width       = 0,
-    	    Height      = 0,
-    	    Format      = .B8G8R8A8_UNORM,
-    	    Stereo      = true,
+            Width       = 800,
+    	    Height      = 600,
+    	    Format      = .R8G8B8A8_UNORM,
+    	    Stereo      = false,
     	    SampleDesc  = { Count = 1, Quality = 0 },
     	    BufferUsage =  { .RENDER_TARGET_OUTPUT },
     	    BufferCount = 2,
-    	    Scaling     = .ASPECT_RATIO_STRETCH,
-    	    SwapEffect  = .DISCARD,
+    	    Scaling     = .NONE,
+    	    SwapEffect  = .FLIP_SEQUENTIAL,
     	    AlphaMode   = .UNSPECIFIED,
     	    Flags       = { .NONPREROTATED },
         }
 
-        hwnd := glfw.GetWin32Window(window)
-        fmt.println(hwnd)
         h_result = factory->CreateSwapChainForHwnd(
             pDevice = device, 
-            hWnd = hwnd, 
+            hWnd = native_window, 
             pDesc = &swap_chain_desc,
             pFullscreenDesc = nil,
             pRestrictToOutput = nil,
@@ -137,15 +149,16 @@ main :: proc() {
         frame_buffer->Release()
     }
 
-    for !glfw.WindowShouldClose(window) {
-        glfw.PollEvents()
-
-        bg_color : [4]f32 = { 0.1, 0.2, 0.6, 1 }
-        device_ctx->ClearRenderTargetView(frame_buffer_view, &bg_color)
-
-        swap_chain->Present(1, { .TEST })
+    for quit := false; !quit; {
+        for e: sdl.Event; sdl.PollEvent(&e); {
+            #partial switch e.type {
+                case .QUIT:
+                    quit = true
+            }
+        }
     }
+}
 
-    glfw.DestroyWindow(window)
-    glfw.Terminate()
+bite :: proc() -> (u32, i32) { 
+    return 1, 2
 }

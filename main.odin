@@ -17,6 +17,8 @@ window_size := [2]i32 {800, 600}
 main :: proc() {
     // Sdl initialization
     window.init(window_size.x, window_size.y, "D3D-Test")
+    defer window.deinit()
+
     graphics.init()
     
     vertex_shader, vs_blob   := graphics.compile_vertex_shader("shaders.hlsl")

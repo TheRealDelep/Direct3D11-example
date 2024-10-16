@@ -31,7 +31,7 @@ init :: proc() {
         pAdapter = nil,
         DriverType = .HARDWARE, 
         Software = nil,
-        Flags = { .BGRA_SUPPORT },
+        Flags = { .BGRA_SUPPORT, .DEBUG },
         pFeatureLevels = &feature_levels[0],
         FeatureLevels = len(feature_levels),
         SDKVersion = d3d.SDK_VERSION,
@@ -49,18 +49,18 @@ init :: proc() {
     assert(h_result == 0)
     base_device_ctx->Release()
 
-    // debug : ^d3d.IDebug
-    // device->QueryInterface(d3d.IDebug_UUID, (^rawptr)(&debug))
-    // if (debug != nil) {
-    //     info_queue : ^d3d.IInfoQueue
-    //     
-    //     h_result = debug->QueryInterface(d3d.IInfoQueue_UUID, (^rawptr)(&info_queue))
-    //     assert(h_result == 0)
+    debug : ^d3d.IDebug
+    device->QueryInterface(d3d.IDebug_UUID, (^rawptr)(&debug))
+    if (debug != nil) {
+        info_queue : ^d3d.IInfoQueue
+        
+        h_result = debug->QueryInterface(d3d.IInfoQueue_UUID, (^rawptr)(&info_queue))
+        assert(h_result == 0)
 
-    //     info_queue->SetBreakOnSeverity(.CORRUPTION, true)
-    //     info_queue->SetBreakOnSeverity(.ERROR, true)
-    //     info_queue->Release()
-    // }
+        info_queue->SetBreakOnSeverity(.CORRUPTION, true)
+        info_queue->SetBreakOnSeverity(.ERROR, true)
+        info_queue->Release()
+    }
 
     factory : ^dxgi.IFactory2
     dxgi_device : ^dxgi.IDevice
@@ -108,7 +108,6 @@ init :: proc() {
     assert(h_result == 0)
     factory->Release()
 
-    frame_buffer_view : ^d3d.IRenderTargetView
     frame_buffer : ^d3d.ITexture2D
     h_result = swap_chain->GetBuffer(0, d3d.ITexture2D_UUID, (^rawptr)(&frame_buffer))
     assert(h_result == 0) 
@@ -144,7 +143,6 @@ compile_vertex_shader :: proc(file_name: string) -> (^d3d.IVertexShader, ^d3d.IB
     )
     assert(h_result == 0)
 
-    shader_compiler_errors_blob->Release()
     return vertex_shader, blob
 }
 

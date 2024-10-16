@@ -9,8 +9,6 @@ native_handle   : sys.HWND
 
 init :: proc(width, height : i32, title: cstring) {
     sdl.Init({ .VIDEO, .EVENTS })
-    defer sdl.Quit()
-
     sdl.SetHintWithPriority(sdl.HINT_RENDER_DRIVER, "direct3d11", .OVERRIDE)
 
     sdl_window = sdl.CreateWindow(
@@ -19,7 +17,6 @@ init :: proc(width, height : i32, title: cstring) {
         width, height, 
         { }
     )
-    defer sdl.DestroyWindow(sdl_window)
 
     window_system_info: sdl.SysWMinfo
     sdl.GetVersion(&window_system_info.version)
@@ -27,4 +24,9 @@ init :: proc(width, height : i32, title: cstring) {
     assert(window_system_info.subsystem == .WINDOWS)
 
     native_handle = dxgi.HWND(window_system_info.info.win.window)
+}
+
+deinit :: proc() {
+    defer sdl.DestroyWindow(sdl_window)
+    sdl.Quit()
 }

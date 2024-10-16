@@ -195,7 +195,7 @@ render :: proc() {
     device_ctx->VSSetShader(draw_command.vertex_shader, nil, 0)
     device_ctx->PSSetShader(draw_command.pixel_shader, nil, 0)
 
-    device_ctx->IASetVertexBuffers(0, 1, &draw_command.vertex_buffer, draw_command.strides, draw_command.offsets)
+    device_ctx->IASetVertexBuffers(0, 1, &draw_command.vertex_buffer, &draw_command.strides, &draw_command.offsets)
     device_ctx->OMSetRenderTargets(1, &frame_buffer_view, nil)
 
     device_ctx->Draw(draw_command.vertex_count, 0)
@@ -209,6 +209,6 @@ DrawCommand :: struct {
     pixel_shader    : ^d3d.IPixelShader,
     vertex_buffer   : ^d3d.IBuffer,
     vertex_count    : u32,
-    strides         : ^u32,
-    offsets         : ^u32
+    strides         : u32,
+    offsets         : u32
 }

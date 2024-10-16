@@ -19,7 +19,7 @@ main :: proc() {
     sdl.SetHintWithPriority(sdl.HINT_RENDER_DRIVER, "direct3d11", .OVERRIDE)
 
     window := sdl.CreateWindow(
-        "D3d Test", 
+        "D3D Test", 
         sdl.WINDOWPOS_CENTERED, sdl.WINDOWPOS_CENTERED,
         window_size.x, window_size.y, 
         { }
@@ -50,7 +50,7 @@ main :: proc() {
             pAdapter = nil,
             DriverType = .HARDWARE, 
             Software = nil,
-            Flags = { .BGRA_SUPPORT, .DEBUG },
+            Flags = { .BGRA_SUPPORT },
             pFeatureLevels = &feature_levels[0],
             FeatureLevels = len(feature_levels),
             SDKVersion = d3d.SDK_VERSION,
@@ -152,8 +152,8 @@ main :: proc() {
 
     // Vertex Shader
     vertex_shader : ^d3d.IVertexShader
+    vs_blob : ^d3d.IBlob
     {
-        vs_blob : ^d3d.IBlob
         shader_compiler_errors_blob : ^d3d.IBlob
 
         h_result = d3d_comp.CompileFromFile(
@@ -209,6 +209,61 @@ main :: proc() {
         assert(h_result == 0)
     }
 
+    input_layout : ^d3d.IInputLayout
+    {
+        input_elem_desc := []d3d.INPUT_ELEMENT_DESC {{ 
+            SemanticName = "pos", SemanticIndex = 0, 
+            Format = dxgi.FORMAT.R32G32_FLOAT,
+            InputSlot = 0, InputSlotClass = .VERTEX_DATA,
+            AlignedByteOffset = 0, 
+            InstanceDataStepRate = 0
+        }, { 
+            SemanticName = "col", SemanticIndex = 0, 
+            Format = dxgi.FORMAT.R32G32B32A32_FLOAT,
+            InputSlot = 0, InputSlotClass = .VERTEX_DATA,
+            AlignedByteOffset = d3d.APPEND_ALIGNED_ELEMENT, 
+            InstanceDataStepRate = 0
+        }}
+
+        h_result = device->CreateInputLayout(
+            &input_elem_desc[0], 
+            2, 
+            vs_blob->GetBufferPointer(), 
+            vs_blob->GetBufferSize(), 
+            &input_layout
+        )
+    }
+
+    vertex_buffer   : ^d3d.IBuffer
+    vertex_count    : u32
+    stride          : u32
+    offset          : u32
+    {
+        // x, y, r, g, b, a
+        vertex_data := []f32 {
+            0, .5, 0, 1, 0, 1,
+            .5, .5, 1, 0, 0, 1,
+            -.5, -.5, 0, 0, 1, 1
+        }
+
+        stride = 6 * size_of(f32) 
+        data_size := size_of(f32) * u32(len(vertex_data))
+        vertex_count = data_size / stride
+        offset = 0
+
+        vertex_buffer_desc := d3d.BUFFER_DESC {
+            ByteWidth = data_size,
+            Usage = .IMMUTABLE,
+            BindFlags = { .VERTEX_BUFFER }
+        }
+
+        vertex_subresource_data := d3d.SUBRESOURCE_DATA {}
+        vertex_subresource_data.pSysMem = raw_data(vertex_data)
+
+        h_result = device->CreateBuffer(&vertex_buffer_desc, &vertex_subresource_data, &vertex_buffer)
+        assert(h_result == 0)
+    }
+
     for quit := false; !quit; {
         for e: sdl.Event; sdl.PollEvent(&e); {
             #partial switch e.type {
@@ -221,8 +276,29 @@ main :: proc() {
             }
         }
 
-        bg_color := [4]f32 {.1, .2, .6, 1}
+        bg_color := [4]f32 {.15, .15, .17, 1}
         device_ctx->ClearRenderTargetView(frame_buffer_view, &bg_color)
+
+        win_rect : windows.RECT
+        windows.GetClientRect(native_window, &win_rect)
+        viewport := d3d.VIEWPORT {
+            0, 0, 
+            f32(win_rect.right - win_rect.left), f32(win_rect.bottom - win_rect.top),
+            0, 1
+        }
+
+        device_ctx->RSSetViewports(1, &viewport)
+
+        device_ctx->IASetPrimitiveTopology(.TRIANGLELIST)
+        device_ctx->IASetInputLayout(input_layout)
+
+        device_ctx->VSSetShader(vertex_shader, nil, 0)
+        device_ctx->PSSetShader(pixel_shader, nil, 0)
+
+        device_ctx->IASetVertexBuffers(0, 1, &vertex_buffer, &stride, &offset)
+        device_ctx->OMSetRenderTargets(1, &frame_buffer_view, nil)
+
+        device_ctx->Draw(vertex_count, 0)
 
         swap_chain->Present(1, {})
     }

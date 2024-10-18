@@ -20,9 +20,8 @@ main :: proc() {
     defer window.deinit()
 
     graphics.init()
-    graphics.draw_command = get_triangle_draw_cmd() 
-
-    quad_cmd := get_texture_quad_draw_cmd()
+    // graphics.draw_command = get_texture_quad_draw_cmd() 
+    graphics.draw_command = get_texture_quad_draw_cmd()
 
     for quit := false; !quit; {
         for e: sdl.Event; sdl.PollEvent(&e); {

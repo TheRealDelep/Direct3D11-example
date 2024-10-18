@@ -7,8 +7,8 @@ import "vendor:directx/dxgi"
 import "vendor:stb/image"
 
 get_texture_quad_draw_cmd :: proc() -> graphics.DrawCommand {
-    vertex_shader, vs_blob  := graphics.compile_vertex_shader("shaders.hlsl")   
-    pixel_shader, ps_blob   := graphics.compile_pixel_shader("shaders.hlsl")   
+    vertex_shader, vs_blob  := graphics.compile_vertex_shader("tex_shaders.hlsl")   
+    pixel_shader, ps_blob   := graphics.compile_pixel_shader("tex_shaders.hlsl")   
 
     input_layout : ^d3d.IInputLayout
     input_elem_desc := []d3d.INPUT_ELEMENT_DESC {{
@@ -42,7 +42,8 @@ get_texture_quad_draw_cmd :: proc() -> graphics.DrawCommand {
     vertex_count    : u32
     stride          : u32
     offset          : u32
-    
+
+
     // x, y, u, v
     vertex_data := []f32 {
         -0.5,  0.5, 0, 0,
@@ -54,7 +55,8 @@ get_texture_quad_draw_cmd :: proc() -> graphics.DrawCommand {
     }
 
     stride = 4 * size_of(f32)
-    vertex_count = size_of(vertex_data) / stride
+    data_size := size_of(f32) * len(vertex_data)
+    vertex_count = 6
     offset = 0
 
     vertex_buffer_desc := d3d.BUFFER_DESC {
@@ -62,6 +64,11 @@ get_texture_quad_draw_cmd :: proc() -> graphics.DrawCommand {
         Usage       = .IMMUTABLE,
         BindFlags   = { .VERTEX_BUFFER }
     }
+
+    vertex_subresource_data := d3d.SUBRESOURCE_DATA {}
+    vertex_subresource_data.pSysMem = raw_data(vertex_data)
+
+    graphics.device->CreateBuffer(&vertex_buffer_desc, &vertex_subresource_data, &vertex_buffer)
 
     // Sampler State
     sampler_desc := d3d.SAMPLER_DESC {
@@ -112,10 +119,9 @@ get_texture_quad_draw_cmd :: proc() -> graphics.DrawCommand {
     texture_view : ^d3d.IShaderResourceView
     graphics.device->CreateShaderResourceView(texture, nil, &texture_view) 
 
-    free(texture_bytes)
-
     return graphics.DrawCommand {
         input_layout, vertex_shader, pixel_shader,
-        vertex_buffer, vertex_count, stride, offset
+        vertex_buffer, texture_view, sampler_state, 
+        vertex_count, stride, offset, 
     }
 }

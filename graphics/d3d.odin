@@ -31,7 +31,7 @@ init :: proc() {
         pAdapter = nil,
         DriverType = .HARDWARE, 
         Software = nil,
-        Flags = { .BGRA_SUPPORT, .DEBUG },
+        Flags = { .BGRA_SUPPORT },
         pFeatureLevels = &feature_levels[0],
         FeatureLevels = len(feature_levels),
         SDKVersion = d3d.SDK_VERSION,
@@ -195,6 +195,14 @@ render :: proc() {
     device_ctx->VSSetShader(draw_command.vertex_shader, nil, 0)
     device_ctx->PSSetShader(draw_command.pixel_shader, nil, 0)
 
+    if draw_command.texture_view != nil {
+        device_ctx->PSSetShaderResources(0, 1, &draw_command.texture_view)
+    }
+
+    if draw_command.sampler_state != nil {
+        device_ctx->PSSetSamplers(0, 1, &draw_command.sampler_state)
+    }
+
     device_ctx->IASetVertexBuffers(0, 1, &draw_command.vertex_buffer, &draw_command.strides, &draw_command.offsets)
     device_ctx->OMSetRenderTargets(1, &frame_buffer_view, nil)
 
@@ -208,7 +216,9 @@ DrawCommand :: struct {
     vertex_shader   : ^d3d.IVertexShader,
     pixel_shader    : ^d3d.IPixelShader,
     vertex_buffer   : ^d3d.IBuffer,
+    texture_view    : ^d3d.IShaderResourceView,
+    sampler_state   : ^d3d.ISamplerState,
     vertex_count    : u32,
     strides         : u32,
-    offsets         : u32
+    offsets         : u32,
 }

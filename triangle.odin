@@ -6,8 +6,8 @@ import "vendor:directx/dxgi"
 import "graphics"
 
 get_triangle_draw_cmd :: proc() -> graphics.DrawCommand {
-    vertex_shader, vs_blob   := graphics.compile_vertex_shader("shaders.hlsl")
-    pixel_shader, ps_blob    := graphics.compile_pixel_shader("shaders.hlsl")
+    vertex_shader, vs_blob   := graphics.compile_vertex_shader("simp_shaders.hlsl")
+    pixel_shader, ps_blob    := graphics.compile_pixel_shader("simp_shaders.hlsl")
 
     input_layout : ^d3d.IInputLayout
 
@@ -66,7 +66,7 @@ get_triangle_draw_cmd :: proc() -> graphics.DrawCommand {
 
     return graphics.DrawCommand {
         input_layout, vertex_shader, pixel_shader,
-        vertex_buffer, vertex_count,
+        vertex_buffer, nil, nil, vertex_count,
         stride, offset
     }
 }
